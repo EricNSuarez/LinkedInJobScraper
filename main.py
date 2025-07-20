@@ -136,7 +136,6 @@ def main():
 
         # Try to extract and store the job description
         try:
-            # Retrieve the text from the div element fathered by a div (class "description__text") > section element. Schematic: (div (class "description__text") > section > div).text
             job_post["job_description"] = job_soup.find("div", {"class": "description__text"}).find("section").find(
                 "div").text.strip()
         except:
