@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import logging
 import random
+from datetime import datetime, timezone
 from typing import List, Dict
 
 # Set logs level in format
@@ -92,7 +93,11 @@ def main():
             continue
 
         # Create a dictionary to store job details
-        job_post = {"job_id": job_posting_id, "job_datetime": job_posting_datetime}
+        job_post = {
+            "job_id": job_posting_id,
+            "job_datetime": job_posting_datetime,
+            "job_scrapped_datetime": datetime.now(timezone.utc)
+        }
 
         # Try to extract and store the job title
         try:
