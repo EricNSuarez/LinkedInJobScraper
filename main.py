@@ -4,6 +4,7 @@ import logging
 import random
 from datetime import datetime, timezone
 from typing import List, Dict
+from models.job_posting import JobPosting
 
 # Set logs level in format
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -94,18 +95,18 @@ def main():
 
         # Create a dictionary to store job details
         job_post = {
-            "job_id": job_posting_id,
-            "job_datetime": job_posting_datetime,
-            "job_scrapped_datetime": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            "id": job_posting_id,
+            "posting_date": job_posting_datetime,
+            "scrapped_datetime": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         }
 
         # Try to extract and store the job title
         try:
-            job_post["job_title"] = job_soup.find("h2", {
+            job_post["title"] = job_soup.find("h2", {
                 "class": "top-card-layout__title"}).text.strip()
         except:
             logging.info(f"Failed to get job title for {job_url}")
-            job_post["job_title"] = None
+            job_post["title"] = None
 
         # Try to extract and store the company name
         try:
@@ -117,27 +118,28 @@ def main():
 
         # Try to extract job location
         try:
-            job_post["job_location"] = job_soup.find("span", {
+            job_post["location"] = job_soup.find("span", {
                 "class": "topcard__flavor topcard__flavor--bullet"}).text.strip()
         except:
             logging.info(f"Failed to get job location for {job_url}")
-            job_post["job_location"] = None
+            job_post["location"] = None
 
-        # Try to extract and store the time posted
-        try:
-            job_post["time_posted"] = job_soup.find("span", {
-                "class": "posted-time-ago__text"}).text.strip()
-        except:
-            logging.info(f"Failed to get time posted for {job_url}")
-            job_post["time_posted"] = None
+        # Removed, as was redundant with datetime field already included
+        # # Try to extract and store the time posted
+        # try:
+        #     job_post["time_posted"] = job_soup.find("span", {
+        #         "class": "posted-time-ago__text"}).text.strip()
+        # except:
+        #     logging.info(f"Failed to get time posted for {job_url}")
+        #     job_post["time_posted"] = None
 
         # Try to extract and store the number of applicants
         try:
-            job_post["num_applicants"] = job_soup.find("figcaption", {
+            job_post["number_of_applicants"] = job_soup.find("figcaption", {
                 "class": "num-applicants__caption"}).text.strip()
         except:
             logging.info(f"Failed to get number of applicants for {job_url}")
-            job_post["num_applicants"] = None
+            job_post["number_of_applicants"] = None
 
         # Try to extract and store the job description
         try:
@@ -156,9 +158,9 @@ def main():
                 criteria_value = criteria.find("span", {"class": "description__job-criteria-text"}).text.strip()
 
                 if criteria_field == "Seniority level":
-                    job_post['job_seniority'] = criteria_value
+                    job_post['seniority'] = criteria_value
                 elif criteria_field == "Employment type":
-                    job_post['job_employment_type'] = criteria_value
+                    job_post['employment_type'] = criteria_value
                 elif criteria_field == "Job function":
                     job_post['job_function'] = criteria_value
                 elif criteria_field == "Industries":
@@ -174,7 +176,7 @@ def main():
             job_post["job_criteria"] = None
 
         # Append the job details to the job_list
-        job_list.append(job_post)
+        job_list.append(JobPosting(**job_post))
 
 if __name__ == "__main__":
     main()
