@@ -154,7 +154,19 @@ def main():
             for criteria in job_criteria:
                 criteria_field = criteria.find("h3", {"class": "description__job-criteria-subheader"}).text.strip()
                 criteria_value = criteria.find("span", {"class": "description__job-criteria-text"}).text.strip()
-                job_criteria_dict[criteria_field] = criteria_value
+
+                if criteria_field == "Seniority level":
+                    job_post['job_seniority'] = criteria_value
+                elif criteria_field == "Employment type":
+                    job_post['job_employment_type'] = criteria_value
+                elif criteria_field == "Job function":
+                    job_post['job_function'] = criteria_value
+                elif criteria_field == "Industries":
+                    job_post['industry'] = criteria_value
+                else:
+                    job_criteria_dict[criteria_field] = criteria_value
+
+            logging.info(f"Job criteria for id{job_posting_id}: {', '.join(job_criteria_dict.keys())}")
 
             job_post["job_criteria"] = job_criteria_dict
         except:
