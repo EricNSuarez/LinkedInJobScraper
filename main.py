@@ -96,7 +96,7 @@ def main():
         job_post = {
             "job_id": job_posting_id,
             "job_datetime": job_posting_datetime,
-            "job_scrapped_datetime": datetime.now(timezone.utc)
+            "job_scrapped_datetime": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         }
 
         # Try to extract and store the job title
