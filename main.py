@@ -236,7 +236,7 @@ def main():
     for job in page_jobs:
         base_card_div = job.find("div", {"class": "base-card"})
         job_posting_id = base_card_div.get("data-entity-urn").split(":")[3]
-        job_posting_datetime = job.find("time", {"class": "job-search-card__listdate"}).get("datetime") or None
+        job_posting_datetime = job.find("time", {"class": "job-search-card__listdate"}).get("datetime", None)
         job_posting_ids.append({
             "id": job_posting_id,
             "datetime": job_posting_datetime,
