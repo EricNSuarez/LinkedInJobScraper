@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any
 class JobPosting(BaseModel):
     id: int
     posting_date: Optional[str] = Field(default=None, description="The date the job was posted in 'dd-mm-yyyy' format.")
-    job_scrapped_datetime: datetime = Field(default=None, description="Date and time the job was scrapped in 'yyyy-mm-dd hh:MM:ss' format.")
+    scrapped_datetime: str = Field(default=None, description="Date and time the job was scrapped in 'yyyy-mm-dd hh:MM:ss' format.")
     title: Optional[str] = Field(default=None, description="The title of the job posting position.")
     company_name: Optional[str] = Field(default=None, description="The name of the company posting the job.")
     location: Optional[str] = Field(default=None, description="The job location.")
@@ -19,4 +19,4 @@ class JobPosting(BaseModel):
 
     def __str__(self):
         # Custom string representation to format job_scrapped_datetime
-        return f'JobPosting(id={self.id}, title={self.title}, company={self.company_name}, job_scrapped_datetime={self.job_scrapped_datetime})'
+        return f'JobPosting(id={self.id}, title={self.title}, company={self.company_name}, job_scrapped_datetime={self.scrapped_datetime})'
