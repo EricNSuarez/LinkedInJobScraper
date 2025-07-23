@@ -14,8 +14,7 @@ def get_proxies() -> List[str]:
     """
     Makes a request to the proxies endpoint and returns a list of proxies found.
 
-    :return:
-    List of proxies to use or empty list
+    :return: List of proxies to use or empty list
     """
     proxy_request = requests.get("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt")
 
@@ -55,6 +54,159 @@ def get_job_postings_response(title: str , location: str, start: int, proxy: str
         raise Exception(f"Status Code: {response.status_code()}")
 
     return response
+
+
+def find_element_text(page_element: BeautifulSoup | bs4.PageElement, name: str | List[str], attrs: Dict[str, str] | None, logging_message: str | None = None) -> str | None:
+    """
+    Looks up for the text for an html element on a page element.
+
+    :param page_element: BeautifulSoup page element to find element from.
+    :param name: Name of the tag to look for.
+    :param attrs: Dictionary containing the class attribute. Example: {"class": "title-subsection"}
+    :param logging_message: Log message to write in case the element isn't found. Default None.
+    :return: Trimmed text for the element found or None.
+
+    """
+    # Try to extract element
+    found_element = page_element.find(name).text.strip() if attrs is None else page_element.find(name, attrs)
+
+    if found_element is None and logging_message:
+        logging.info(logging_message)
+
+    try:
+        return found_element.text.strip()
+    except AttributeError:
+        return None
+
+
+def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None] | None:
+    """
+    Makes a request to the job posting endpoint and return a dictionary containing the following data.
+        - id
+        - scrapped_datetime
+        - title
+        - company_name
+        - location
+        - number_of_applicants
+        - description
+        - job_description
+        - seniority
+        - employment_type
+        - job_function
+        - industry
+        - job_criteria
+
+    :param job_posting_id:
+    :param proxy: A proxy value. Defaults to None.
+
+    :return: Dictionary containing relevant key/values or None:
+    """
+
+    # Create a dictionary to store job details
+    job_post = {
+        "id": job_posting_id,
+        "scrapped_datetime": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+        "title": None,
+        "company_name": None,
+        "location": None,
+        "number_of_applicants": None,
+        "description": None,
+        "job_description": None,
+        "seniority": None,
+        "employment_type": None,
+        "job_function": None,
+        "industry": None,
+        "job_criteria": None
+    }
+
+    job_url = f"https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{job_posting_id}"
+
+    # Send a GET request to the job URL and parse the response
+    # TODO: Set custom headers for the request
+    job_response = requests.get(
+        job_url,
+        proxies=None if proxy is None else {"http": proxy}
+    )
+    logging.info(f"Response from {job_url}")
+
+    job_soup = BeautifulSoup(job_response.text, "html.parser")
+
+    # Continue if request wasn't successful
+    if job_response.status_code != 200:
+        logging.error(f"Status Code: {job_response.status_code()} for job posting id: {job_posting_id}")
+        return None
+
+    # Try to extract and store the job title
+    job_post["title"] = find_element_text(
+        job_soup,
+        "h2",
+        {"class": "top-card-layout__title"},
+        f"Failed to get job title for {job_url}"
+    )
+
+    # Try to extract and store the company name
+    job_post["company_name"] = find_element_text(
+        job_soup,
+        "a",
+        {"class": "topcard__org-name-link"},
+        f"Failed to get company name for {job_url}"
+    )
+
+    # Try to extract and store the job location
+    job_post["location"] = find_element_text(
+        job_soup,
+        "span",
+        {"class": "topcard__flavor topcard__flavor--bullet"},
+        f"Failed to get job location for {job_url}"
+    )
+
+    # Try to extract and store the number of applicants
+    job_post["number_of_applicants"] = find_element_text(
+        job_soup,
+        ["figcaption", "span"],
+        {"class": "num-applicants__caption"},
+        f"Failed to get number of applicants for {job_url}"
+    )
+
+    # Try to extract and store the job description
+    description_section = job_soup.find("div", {"class": "description__text"}).find("section")
+    if description_section is not None:
+        job_post["job_description"] = find_element_text(
+            description_section,
+            "div",
+            None,
+            f"Failed to get job description for {job_url}"
+        )
+
+    # Try to extract and store the job criteria like seniority, employment type, job function and industry
+    try:
+        job_criteria = job_soup.find_all("li", {"class": "description__job-criteria-item"})
+        job_criteria_dict = {}
+        for criteria in job_criteria:
+            criteria_field = find_element_text(criteria,"h3",{"class": "description__job-criteria-subheader"} )
+            criteria_value = find_element_text(criteria,"span",{"class": "description__job-criteria-text"} )
+
+            mapper = {
+                "Seniority level": "seniority",
+                "Employment type": "employment_type",
+                "Job function": "job_function",
+                "Industries": "industry"
+            }
+
+            if criteria_field in mapper:
+                job_post[mapper[criteria_field]] = criteria_value
+            else:
+                job_criteria_dict[criteria_field] = criteria_value
+
+        if len(job_criteria_dict) > 0:
+            logging.info(f"Additional job criteria for id{job_posting_id}: {', '.join(job_criteria_dict.keys())}")
+
+        job_post["job_criteria"] = job_criteria_dict
+    except AttributeError:
+        logging.info(f"Failed to get job criteria for {job_url}")
+        job_post["job_criteria"] = None
+
+    return job_post
 
 
 def main():
@@ -99,103 +251,10 @@ def main():
     for job_posting in job_posting_ids:
 
         job_posting_id = job_posting["id"]
-        job_posting_datetime = job_posting["datetime"]
 
-        # Construct the URL for each job using the job ID
-        job_url = f"https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{job_posting_id}"
+        job_post  = get_job_data(job_posting_id, random.choice(proxy_list))
 
-        # Send a GET request to the job URL and parse the reponse
-        # TODO: Set custom headers for the request
-        job_response = requests.get(job_url, proxies={"http": random.choice(proxy_list)})
-        logging.info(f"Response from {job_url}")
-        job_soup = BeautifulSoup(job_response.text, "html.parser")
-
-        # Continue if request wasn't successful
-        if job_response.status_code != 200:
-            logging.error(f"Status Code: {job_response.status_code()} for job posting id: {job_posting_id}")
-            continue
-
-        # Create a dictionary to store job details
-        job_post = {
-            "id": job_posting_id,
-            "posting_date": job_posting_datetime,
-            "scrapped_datetime": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-        }
-
-        # Try to extract and store the job title
-        try:
-            job_post["title"] = job_soup.find("h2", {
-                "class": "top-card-layout__title"}).text.strip()
-        except:
-            logging.info(f"Failed to get job title for {job_url}")
-            job_post["title"] = None
-
-        # Try to extract and store the company name
-        try:
-            job_post["company_name"] = job_soup.find("a", {
-                "class": "topcard__org-name-link"}).text.strip()
-        except:
-            logging.info(f"Failed to get company name for {job_url}")
-            job_post["company_name"] = None
-
-        # Try to extract job location
-        try:
-            job_post["location"] = job_soup.find("span", {
-                "class": "topcard__flavor topcard__flavor--bullet"}).text.strip()
-        except:
-            logging.info(f"Failed to get job location for {job_url}")
-            job_post["location"] = None
-
-        # Removed, as was redundant with datetime field already included
-        # # Try to extract and store the time posted
-        # try:
-        #     job_post["time_posted"] = job_soup.find("span", {
-        #         "class": "posted-time-ago__text"}).text.strip()
-        # except:
-        #     logging.info(f"Failed to get time posted for {job_url}")
-        #     job_post["time_posted"] = None
-
-        # Try to extract and store the number of applicants
-        try:
-            job_post["number_of_applicants"] = job_soup.find("figcaption", {
-                "class": "num-applicants__caption"}).text.strip()
-        except:
-            logging.info(f"Failed to get number of applicants for {job_url}")
-            job_post["number_of_applicants"] = None
-
-        # Try to extract and store the job description
-        try:
-            job_post["job_description"] = job_soup.find("div", {"class": "description__text"}).find("section").find(
-                "div").text.strip()
-        except:
-            logging.info(f"Failed to get job description for {job_url}")
-            job_post["job_description"] = None
-
-        # Try to extract and store the job criteria like seniority, employment type, job function and industry
-        try:
-            job_criteria = job_soup.find_all("li", {"class": "description__job-criteria-item"})
-            job_criteria_dict = {}
-            for criteria in job_criteria:
-                criteria_field = criteria.find("h3", {"class": "description__job-criteria-subheader"}).text.strip()
-                criteria_value = criteria.find("span", {"class": "description__job-criteria-text"}).text.strip()
-
-                if criteria_field == "Seniority level":
-                    job_post['seniority'] = criteria_value
-                elif criteria_field == "Employment type":
-                    job_post['employment_type'] = criteria_value
-                elif criteria_field == "Job function":
-                    job_post['job_function'] = criteria_value
-                elif criteria_field == "Industries":
-                    job_post['industry'] = criteria_value
-                else:
-                    job_criteria_dict[criteria_field] = criteria_value
-
-            logging.info(f"Job criteria for id{job_posting_id}: {', '.join(job_criteria_dict.keys())}")
-
-            job_post["job_criteria"] = job_criteria_dict
-        except:
-            logging.info(f"Failed to get job criteria for {job_url}")
-            job_post["job_criteria"] = None
+        job_post["posting_date"] = job_posting["datetime"]
 
         # Append the job details to the job_list
         job_list.append(JobPosting(**job_post))
