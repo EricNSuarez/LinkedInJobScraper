@@ -56,19 +56,19 @@ def get_job_postings_response(title: str , location: str, start: int, proxy: str
     return response
 
 
-def find_element_text(page_element: BeautifulSoup | bs4.PageElement, name: str | List[str], attrs: Dict[str, str] | None, logging_message: str | None = None) -> str | None:
+def find_element_text(page_element: BeautifulSoup | bs4.PageElement, name: str | List[str], class_: str | None, logging_message: str | None = None) -> str | None:
     """
-    Looks up for the text for an html element on a page element.
+    Looks up for the text for a html element on a page element.
 
     :param page_element: BeautifulSoup page element to find element from.
     :param name: Name of the tag to look for.
-    :param attrs: Dictionary containing the class attribute. Example: {"class": "title-subsection"}
+    :param class_: Class/classes to look for matching along with name.
     :param logging_message: Log message to write in case the element isn't found. Default None.
     :return: Trimmed text for the element found or None.
 
     """
     # Try to extract element
-    found_element = page_element.find(name).text.strip() if attrs is None else page_element.find(name, attrs)
+    found_element = page_element.find(name) if class_ is None else page_element.find(name, class_= class_)
 
     if found_element is None and logging_message:
         logging.info(logging_message)
@@ -88,7 +88,6 @@ def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None
         - company_name
         - location
         - number_of_applicants
-        - description
         - job_description
         - seniority
         - employment_type
@@ -110,7 +109,6 @@ def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None
         "company_name": None,
         "location": None,
         "number_of_applicants": None,
-        "description": None,
         "job_description": None,
         "seniority": None,
         "employment_type": None,
@@ -140,7 +138,7 @@ def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None
     job_post["title"] = find_element_text(
         job_soup,
         "h2",
-        {"class": "top-card-layout__title"},
+        "top-card-layout__title",
         f"Failed to get job title for {job_url}"
     )
 
@@ -148,7 +146,7 @@ def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None
     job_post["company_name"] = find_element_text(
         job_soup,
         "a",
-        {"class": "topcard__org-name-link"},
+        "topcard__org-name-link",
         f"Failed to get company name for {job_url}"
     )
 
@@ -156,7 +154,7 @@ def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None
     job_post["location"] = find_element_text(
         job_soup,
         "span",
-        {"class": "topcard__flavor topcard__flavor--bullet"},
+        "topcard__flavor topcard__flavor--bullet",
         f"Failed to get job location for {job_url}"
     )
 
@@ -164,12 +162,12 @@ def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None
     job_post["number_of_applicants"] = find_element_text(
         job_soup,
         ["figcaption", "span"],
-        {"class": "num-applicants__caption"},
+        "num-applicants__caption",
         f"Failed to get number of applicants for {job_url}"
     )
 
     # Try to extract and store the job description
-    description_section = job_soup.find("div", {"class": "description__text"}).find("section")
+    description_section = job_soup.find("div", class_="description__text").find("section")
     if description_section is not None:
         job_post["job_description"] = find_element_text(
             description_section,
@@ -180,11 +178,11 @@ def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None
 
     # Try to extract and store the job criteria like seniority, employment type, job function and industry
     try:
-        job_criteria = job_soup.find_all("li", {"class": "description__job-criteria-item"})
+        job_criteria = job_soup.find_all("li", class_="description__job-criteria-item")
         job_criteria_dict = {}
         for criteria in job_criteria:
-            criteria_field = find_element_text(criteria,"h3",{"class": "description__job-criteria-subheader"} )
-            criteria_value = find_element_text(criteria,"span",{"class": "description__job-criteria-text"} )
+            criteria_field = find_element_text(criteria,"h3", "description__job-criteria-subheader")
+            criteria_value = find_element_text(criteria,"span","description__job-criteria-text")
 
             mapper = {
                 "Seniority level": "seniority",
@@ -236,7 +234,7 @@ def main():
     for job in page_jobs:
         base_card_div = job.find("div", {"class": "base-card"})
         job_posting_id = base_card_div.get("data-entity-urn").split(":")[3]
-        job_posting_datetime = job.find("time", {"class": "job-search-card__listdate"}).get("datetime", None)
+        job_posting_datetime = job.find("time", class_="job-search-card__listdate").get("datetime", None)
         job_posting_ids.append({
             "id": job_posting_id,
             "datetime": job_posting_datetime,
