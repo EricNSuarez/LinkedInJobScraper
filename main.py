@@ -9,6 +9,7 @@ from models.job_posting import JobPosting
 # Set logs level in format
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
+# TODO: Fix type hint, should be List[str]
 def get_proxies() -> List[Dict[str, str]]:
     """
     Makes a request to the proxies endpoint and returns a list of proxies found.
@@ -25,8 +26,40 @@ def get_proxies() -> List[Dict[str, str]]:
         logging.error("Failed to get proxies")
         return []
 
+def get_job_postings_response(title: str , location: str, start: int, proxy: str = None) -> requests.Response | None:
+    """
+    Makes a request to the job search endpoint and return a response object.
+
+    :param title: Title for the job/position to pass to the search endpoint.
+    :param location: Location for the job/position to pass to the search endpoint.
+    :param start: Value between 0 and 1000
+    :param proxy: A proxy value. Defaults to None.
+    :return: Response object or None
+    """
+    if start < 0 or start > 1000:
+        raise ValueError("Invalid start value, number should an int between 0 and 1000")
+
+    list_url = f"https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords={title}&location={location}&start={start}"
+
+    # Send a GET request to the URL and store the response
+    # TODO: Set custom headers for the request
+    response = requests.get(
+        list_url,
+        proxies=None if proxy is None else {"http": proxy}
+    )
+    logging.info(f"Response from {list_url}")
+
+    # Raise error if request wasn't successful
+    if response.status_code != 200:
+        logging.error(f"Status Code: {response.status_code()}")
+        raise Exception(f"Status Code: {response.status_code()}")
+
+    return response
+
+
 def main():
-    title = "Data analyst"
+    # TODO: Load search query from .env
+    title = "\"Data analyst\""
     location = "Buenos Aires"
     start = 0
 
@@ -36,18 +69,7 @@ def main():
         logging.error("Exiting script due to failure retrieving proxies")
         exit(1)
 
-    # Construct the URL for LinkedIn job search
-    list_url = f"https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords={title}&location={location}&start={start}"
-
-    # Send a GET request to the URL and store the response
-    # TODO: Set custom headers for the request
-    response = requests.get(list_url, proxies={"http": random.choice(proxy_list)})
-    logging.info(f"Response from {list_url}")
-
-    # Raise error if request wasn't successful
-    if response.status_code != 200:
-        logging.error(f"Status Code: {response.status_code()}")
-        raise Exception(f"Status Code: {response.status_code()}")
+    response = get_job_postings_response(title, location, start, random.choice(proxy_list))
 
     # Get the HTML, parse the response and find all list items(jobs postings)
     list_data = response.text
