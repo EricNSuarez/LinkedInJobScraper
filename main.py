@@ -9,8 +9,7 @@ from models.job_posting import JobPosting
 # Set logs level in format
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-# TODO: Fix type hint, should be List[str]
-def get_proxies() -> List[Dict[str, str]]:
+def get_proxies() -> List[str]:
     """
     Makes a request to the proxies endpoint and returns a list of proxies found.
 
