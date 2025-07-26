@@ -223,6 +223,8 @@ def main():
     # Initialize an empty list to store job information
     job_list = []
 
+    parsed_job_posting_ids = []
+
     for _ in range(start, 1000, 1):
 
         if start >= 1000:
@@ -262,6 +264,13 @@ def main():
         for job_posting in job_posting_ids:
 
             job_posting_id = job_posting["id"]
+
+            # Repeated ids were found on different pages
+            if job_posting_id in parsed_job_posting_ids:
+                logging.info(f"Skipping job posting id {job_posting_id}")
+                continue
+
+            parsed_job_posting_ids.append(job_posting_id)
 
             job_post  = get_job_data(job_posting_id, random.choice(proxy_list))
 
