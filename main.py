@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 import logging
 import random
 from datetime import datetime, timezone
-from typing import List, Dict
+from typing import List
 from models.job_posting import JobPosting
 
 # Set logs level in format
@@ -50,8 +50,8 @@ def get_job_postings_response(title: str , location: str, start: int, proxy: str
 
     # Raise error if request wasn't successful
     if response.status_code != 200:
-        logging.error(f"Status Code: {response.status_code()}")
-        raise Exception(f"Status Code: {response.status_code()}")
+        logging.error(f"Status Code: {response.status_code}")
+        raise Exception(f"Status Code: {response.status_code}")
 
     return response
 
@@ -131,7 +131,7 @@ def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None
 
     # Continue if request wasn't successful
     if job_response.status_code != 200:
-        logging.error(f"Status Code: {job_response.status_code()} for job posting id: {job_posting_id}")
+        logging.error(f"Status Code: {job_response.status_code} for job posting id: {job_posting_id}")
         return None
 
     # Try to extract and store the job title
@@ -208,6 +208,7 @@ def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None
 
 
 def main():
+    end_loop = False
     # TODO: Load search query from .env
     title = "\"Data analyst\""
     location = "Buenos Aires"
@@ -219,43 +220,65 @@ def main():
         logging.error("Exiting script due to failure retrieving proxies")
         exit(1)
 
-    response = get_job_postings_response(title, location, start, random.choice(proxy_list))
-
-    # Get the HTML, parse the response and find all list items(jobs postings)
-    list_data = response.text
-    list_soup = BeautifulSoup(list_data, "html.parser")
-    page_jobs = list_soup.find_all("li")
-
-    logging.info(f"Found {len(page_jobs)} jobs")
-
-    job_posting_ids = []
-
-    # Iterate through job postings to find job ids
-    for job in page_jobs:
-        base_card_div = job.find("div", {"class": "base-card"})
-        job_posting_id = base_card_div.get("data-entity-urn").split(":")[3]
-        job_posting_datetime = job.find("time").get("datetime", None)
-        job_posting_ids.append({
-            "id": job_posting_id,
-            "datetime": job_posting_datetime,
-        })
-
-    logging.info(f"Found {len(job_posting_ids)} job posting ids")
-
     # Initialize an empty list to store job information
     job_list = []
 
-    # Loop through the list of job IDs and get each URL
-    for job_posting in job_posting_ids:
+    for _ in range(start, 1000, 1):
 
-        job_posting_id = job_posting["id"]
+        if start >= 1000:
+            logging.info("Exiting script due to having reach page 999 or higher.")
+            break
 
-        job_post  = get_job_data(job_posting_id, random.choice(proxy_list))
+        response = get_job_postings_response(title, location, start, random.choice(proxy_list))
 
-        job_post["posting_date"] = job_posting["datetime"]
+        # Get the HTML, parse the response and find all list items(jobs postings)
+        list_data = response.text
+        list_soup = BeautifulSoup(list_data, "html.parser")
+        page_jobs = list_soup.find_all("li")
 
-        # Append the job details to the job_list
-        job_list.append(JobPosting(**job_post))
+        logging.info(f"Found {len(page_jobs)} jobs")
+
+        job_posting_ids = []
+
+        # Iterate through job postings to find job ids
+        for job in page_jobs:
+            base_card_div = job.find("div", {"class": "base-card"})
+            job_posting_id = base_card_div.get("data-entity-urn").split(":")[3]
+            job_posting_datetime = job.find("time").get("datetime", None)
+            job_posting_ids.append({
+                "id": job_posting_id,
+                "datetime": job_posting_datetime,
+            })
+
+        logging.info(f"Found {len(job_posting_ids)} job posting ids")
+
+        if len(job_posting_ids) == 0:
+            logging.error("Exiting script due to failure retrieving job posting ids")
+            break
+        if 0 < len(job_posting_ids) < 10:
+            end_loop = True
+
+        # Loop through the list of job IDs and get each URL
+        for job_posting in job_posting_ids:
+
+            job_posting_id = job_posting["id"]
+
+            job_post  = get_job_data(job_posting_id, random.choice(proxy_list))
+
+            if job_post is None:
+                continue
+
+            job_post["posting_date"] = job_posting["datetime"]
+
+            # Append the job details to the job_list
+            job_list.append(JobPosting(**job_post))
+
+            print(JobPosting(**job_post))
+
+        if end_loop:
+            break
+
+        start += 1
 
 if __name__ == "__main__":
     main()
