@@ -8,7 +8,12 @@ from typing import List
 from models.job_posting import JobPosting
 
 # Set logs level in format
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    encoding='utf-8',
+    filename=f"logs//{datetime.now().strftime('%Y%m%d%H%M%S')}.log"
+)
 
 def get_proxies() -> List[str]:
     """
