@@ -1,6 +1,10 @@
 from datetime import datetime
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
+from typing import Optional, List
+
+class JobCriteria(BaseModel):
+    key: str = Field(max_length=100)
+    value: str = Field(default="", max_length=1000)
 
 class JobPosting(BaseModel):
     id: int
@@ -15,7 +19,10 @@ class JobPosting(BaseModel):
     employment_type: Optional[str] = Field(default=None, description="The type of employment (e.g., Full-time, Part-time).")
     job_function: Optional[str] = Field(default=None, description="The job function (e.g., Marketing, Engineering).")
     industry: Optional[str] = Field(default=None, description="The industry category of the job.")
-    job_criteria: Optional[Dict[str, Any]] = Field(default=None, description="Dynamic job criteria fields.")
+    job_criteria: Optional[List[JobCriteria]] = Field(
+        default=None,
+        description="List of normalized criteria items"
+    )
 
     def __str__(self):
         # Custom string representation to format job_scrapped_datetime

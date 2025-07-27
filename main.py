@@ -5,7 +5,8 @@ import logging
 import random
 from datetime import datetime, timezone
 from typing import List
-from models.job_posting import JobPosting
+from models.job_posting import JobPosting, JobCriteria
+from models.database import init_db
 
 # Set logs level in format
 logging.basicConfig(
@@ -14,6 +15,8 @@ logging.basicConfig(
     encoding='utf-8',
     filename=f"logs//{datetime.now().strftime('%Y%m%d%H%M%S')}.log"
 )
+
+init_db()
 
 def get_proxies() -> List[str]:
     """
@@ -184,7 +187,7 @@ def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None
     # Try to extract and store the job criteria like seniority, employment type, job function and industry
     try:
         job_criteria = job_soup.find_all("li", class_="description__job-criteria-item")
-        job_criteria_dict = {}
+        job_criteria_list = []
         for criteria in job_criteria:
             criteria_field = find_element_text(criteria,"h3", "description__job-criteria-subheader")
             criteria_value = find_element_text(criteria,"span","description__job-criteria-text")
@@ -199,12 +202,14 @@ def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None
             if criteria_field in mapper:
                 job_post[mapper[criteria_field]] = criteria_value
             else:
-                job_criteria_dict[criteria_field] = criteria_value
+                job_criteria_list.append(
+                    JobCriteria(key=criteria_field, value=criteria_value)
+                )
 
-        if len(job_criteria_dict) > 0:
-            logging.info(f"Additional job criteria for id{job_posting_id}: {', '.join(job_criteria_dict.keys())}")
+        if len(job_criteria_list) > 0:
+            logging.info(f"Additional job criteria for id{job_posting_id}: {', '.join([criteria.key for criteria in job_criteria_list])}")
 
-        job_post["job_criteria"] = job_criteria_dict
+        job_post["job_criteria"] = job_criteria_list
     except AttributeError:
         logging.info(f"Failed to get job criteria for {job_url}")
         job_post["job_criteria"] = None

@@ -187,3 +187,4 @@ fabric.properties
 # custom - Eric Suárez
 .secrets
 logs
+jobs.db
