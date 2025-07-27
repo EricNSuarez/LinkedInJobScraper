@@ -109,7 +109,7 @@ def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None
     # Create a dictionary to store job details
     job_post = {
         "id": job_posting_id,
-        "scrapped_datetime": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+        "scrapped_datetime": datetime.now(timezone.utc),
         "title": None,
         "company_name": None,
         "location": None,
