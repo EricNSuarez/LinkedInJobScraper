@@ -60,7 +60,7 @@ python main.py
 - [x] Proxies are utilized to avoid blocks while scraping.
 
 ### To Do
-- [ ] Implement functionality to store scraped data into an SQLite database.
+- [x] Implement functionality to store scraped data into an SQLite database.
 - [ ] Enhance error handling.
 - [ ] Optimize scraping performance and manage rate limits.
 - [ ] Implement functionality to skip job postings already scrapped.
