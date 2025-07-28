@@ -19,7 +19,7 @@ class JobPosting(BaseModel):
     employment_type: Optional[str] = Field(default=None, description="The type of employment (e.g., Full-time, Part-time).")
     job_function: Optional[str] = Field(default=None, description="The job function (e.g., Marketing, Engineering).")
     industry: Optional[str] = Field(default=None, description="The industry category of the job.")
-    job_criteria: Optional[List[JobCriteria]] = Field(
+    criteria: Optional[List[JobCriteria]] = Field(
         default=None,
         description="List of normalized criteria items"
     )

@@ -6,7 +6,7 @@ import random
 from datetime import datetime, timezone
 from typing import List
 from models.job_posting import JobPosting, JobCriteria
-from models.database import init_db
+from models.database import init_db, JobPostingRepository
 
 # Set logs level in format
 logging.basicConfig(
@@ -87,7 +87,7 @@ def find_element_text(page_element: BeautifulSoup | bs4.PageElement, name: str |
         return None
 
 
-def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None] | None:
+def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None | List[JobCriteria]] | None:
     """
     Makes a request to the job posting endpoint and return a dictionary containing the following data.
         - id
@@ -101,7 +101,7 @@ def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None
         - employment_type
         - job_function
         - industry
-        - job_criteria
+        - criteria
 
     :param job_posting_id:
     :param proxy: A proxy value. Defaults to None.
@@ -122,7 +122,7 @@ def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None
         "employment_type": None,
         "job_function": None,
         "industry": None,
-        "job_criteria": None
+        "criteria": None
     }
 
     job_url = f"https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{job_posting_id}"
@@ -209,10 +209,10 @@ def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None
         if len(job_criteria_list) > 0:
             logging.info(f"Additional job criteria for id{job_posting_id}: {', '.join([criteria.key for criteria in job_criteria_list])}")
 
-        job_post["job_criteria"] = job_criteria_list
+        job_post["criteria"] = job_criteria_list
     except AttributeError:
         logging.info(f"Failed to get job criteria for {job_url}")
-        job_post["job_criteria"] = None
+        job_post["criteria"] = None
 
     return job_post
 
@@ -233,7 +233,9 @@ def main():
     # Initialize an empty list to store job information
     job_list = []
 
-    parsed_job_posting_ids = []
+    job_posting_repository = JobPostingRepository()
+
+    parsed_job_posting_ids = job_posting_repository.get_all_job_ids()
 
     for _ in range(start, 1000, 1):
 
@@ -258,7 +260,7 @@ def main():
             job_posting_id = base_card_div.get("data-entity-urn").split(":")[3]
             job_posting_datetime = job.find("time").get("datetime", None)
             job_posting_ids.append({
-                "id": job_posting_id,
+                "id": int(job_posting_id),
                 "datetime": job_posting_datetime,
             })
 
