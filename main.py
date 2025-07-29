@@ -3,8 +3,10 @@ import requests
 from bs4 import BeautifulSoup
 import logging
 import random
+import json
+import os
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Dict
 from models.job_posting import JobPosting, JobCriteria
 from models.database import init_db, JobPostingRepository
 
@@ -17,6 +19,48 @@ logging.basicConfig(
 )
 
 init_db()
+
+
+def load_config() -> Dict[str, List[Dict[str, str]]]:
+    """
+    Load configuration file from config.json and validate its structure.
+
+    :return: A dictionary containing search combinations with titles and locations.
+    :raises FileNotFoundError: If config.json does not exist.
+    :raises ValueError: If the structure of config.json is not valid.
+    """
+    config_file = 'config.json'
+
+    # Check if the config file exists
+    if not os.path.isfile(config_file):
+        raise FileNotFoundError(f"Error: {config_file} is missing.")
+
+    # Load the config.json file
+    with open(config_file, 'r') as file:
+        config = json.load(file)
+
+    # Validate the config structure
+    if 'search' not in config:
+        raise ValueError("'search' key is missing from the configuration.")
+
+    if not isinstance(config['search'], list):
+        raise ValueError("'search' key must be a list.")
+
+    if not config['search']:
+        raise ValueError("'search' list is empty.")
+
+    for entry in config['search']:
+        if not isinstance(entry, dict):
+            raise ValueError("Each entry in 'search' must be a dictionary.")
+
+        if 'title' not in entry or 'location' not in entry:
+            raise ValueError("Each entry must contain both 'title' and 'location' keys.")
+
+        if not isinstance(entry['title'], str) or not isinstance(entry['location'], str):
+            raise ValueError("'title' and 'location' must be strings.")
+
+    return config
+
 
 def get_proxies() -> List[str]:
     """
@@ -217,18 +261,21 @@ def get_job_data(job_posting_id: str, proxy: str = None) -> dict[str, str | None
     return job_post
 
 
-def main():
+def search_linkedin_jobs(title: str, location: str, start: int, proxy_list: list) -> None:
+    """
+    Searches for job postings on LinkedIn based on the specified title and location.
+
+    Retrieves and scrapes data from the search results and loads it into a database.
+
+    :param title: The job title to search for (e.g., 'Software Engineer').
+    :param location: The geographical location where the job is located (e.g., 'San Francisco, CA').
+    :param start: The starting page number for pagination in the search results.
+    :param proxy_list: A list of proxy servers to facilitate scraping without IP blocking.
+
+    :return: None. The function saves the scraped data directly into the database.
+    """
+
     end_loop = False
-    # TODO: Load search query from .env
-    title = "\"Data analyst\""
-    location = "Buenos Aires"
-    start = 0
-
-    proxy_list = get_proxies()
-
-    if len(proxy_list) == 0:
-        logging.error("Exiting script due to failure retrieving proxies")
-        exit(1)
 
     # Initialize an empty list to store job information
     job_list = []
@@ -284,7 +331,7 @@ def main():
 
             parsed_job_posting_ids.append(job_posting_id)
 
-            job_post  = get_job_data(job_posting_id, random.choice(proxy_list))
+            job_post = get_job_data(job_posting_id, random.choice(proxy_list))
 
             if job_post is None:
                 continue
@@ -300,6 +347,32 @@ def main():
             break
 
         start += 1
+
+    try:
+        job_posting_repository.bulk_create_job_postings(job_list)
+    except ValueError:
+        logging.warning(f"Failure uploading job posting data to database for {title=} {location=}")
+
+
+def main():
+
+    config = load_config()
+
+    proxy_list = get_proxies()
+
+    if len(proxy_list) == 0:
+        logging.error("Exiting script due to failure retrieving proxies")
+        exit(1)
+
+    search_combinations = config["search"]
+
+    for combination in search_combinations:
+
+        title = combination["title"]
+        location = combination["location"]
+        start = 0
+
+        search_linkedin_jobs(title, location, start, proxy_list)
 
 if __name__ == "__main__":
     main()
