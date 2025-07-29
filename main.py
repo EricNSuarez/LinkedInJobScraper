@@ -77,7 +77,7 @@ def get_proxies() -> List[str]:
         logging.error("Failed to get proxies")
         return []
 
-def get_job_postings_response(title: str , location: str, start: int, proxy: str = None) -> requests.Response | None:
+def get_job_postings_response(title: str , location: str, start: int, proxy: str = None, proxy_list: List[str] | None = None) -> requests.Response | None:
     """
     Makes a request to the job search endpoint and return a response object.
 
@@ -85,6 +85,7 @@ def get_job_postings_response(title: str , location: str, start: int, proxy: str
     :param location: Location for the job/position to pass to the search endpoint.
     :param start: Value between 0 and 1000
     :param proxy: A proxy value. Defaults to None.
+    :param proxy_list: List of proxies values to use in case first request fails.
     :return: Response object or None
     """
     if start < 0 or start > 1000:
@@ -99,6 +100,17 @@ def get_job_postings_response(title: str , location: str, start: int, proxy: str
         proxies=None if proxy is None else {"http": proxy}
     )
     logging.info(f"Response from {list_url}")
+
+    # Change proxy if too many requests is being raised
+    if response.status_code == 429 and proxy_list is not None:
+        logging.error(f"Status Code: {response.status_code}. Repeating request with a different proxy.")
+        active_proxies = proxy_list.copy()
+        active_proxies.remove(proxy)
+
+        response = requests.get(
+            list_url,
+            proxies=None if proxy is None else {"http": random.choice(active_proxies)}
+        )
 
     # Raise error if request wasn't successful
     if response.status_code != 200:
@@ -290,7 +302,9 @@ def search_linkedin_jobs(title: str, location: str, start: int, proxy_list: list
             logging.info("Exiting script due to having reach page 999 or higher.")
             break
 
-        response = get_job_postings_response(title, location, start, random.choice(proxy_list))
+        proxy = random.choice(proxy_list)
+
+        response = get_job_postings_response(title, location, start, proxy, proxy_list)
 
         # Get the HTML, parse the response and find all list items(jobs postings)
         list_data = response.text
