@@ -27,7 +27,7 @@ This script uses a list of proxies obtained from [TheSpeedX's SOCKS List](https:
 1. Clone the repository:
    ```bash
    git clone https://github.com/EricNSuarez/LinkedInJobScraper.git
-   cd LinkedInJobPostings
+   cd LinkedInJobScraper
    ```
    
 2. Create and activate virtual environment:
@@ -36,9 +36,9 @@ This script uses a list of proxies obtained from [TheSpeedX's SOCKS List](https:
    .venv\Scripts\activate
    ```
 
-2. Install the required packages:
+2. Create a config file from the example:
    ```bash
-   uv pip install -r pyproject.toml
+   cp config.example.json config.json
    ```
 
 ## Usage
