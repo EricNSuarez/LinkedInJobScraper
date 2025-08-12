@@ -26,20 +26,20 @@ This script uses a list of proxies obtained from [TheSpeedX's SOCKS List](https:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/linkedin-job-scraper.git
-   cd linkedin-job-scraper
+   git clone https://github.com/EricNSuarez/LinkedInJobScraper.git
+   cd LinkedInJobPostings
    ```
 
 2. Install the required packages:
    ```bash
-   pip install -r requirements.txt
+   uv pip install -r pyproject.toml
    ```
 
 ## Usage
 
 To run the scraper, execute the following command:
 ```bash
-python main.py
+uv run main.py
 ```
 
 ## Current Status
@@ -63,7 +63,7 @@ python main.py
 - [x] Implement functionality to store scraped data into an SQLite database.
 - [ ] Enhance error handling.
 - [ ] Optimize scraping performance and manage rate limits.
-- [ ] Implement functionality to skip job postings already scrapped.
+- [x] Implement functionality to skip job postings already scrapped.
 
 ## Disclaimer
 
