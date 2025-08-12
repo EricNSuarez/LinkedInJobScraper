@@ -29,6 +29,12 @@ This script uses a list of proxies obtained from [TheSpeedX's SOCKS List](https:
    git clone https://github.com/EricNSuarez/LinkedInJobScraper.git
    cd LinkedInJobPostings
    ```
+   
+2. Create and activate virtual environment:
+    ```
+   uv venv .venv
+   .venv\Scripts\activate
+   ```
 
 2. Install the required packages:
    ```bash
