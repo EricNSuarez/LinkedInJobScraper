@@ -150,8 +150,10 @@ def get_job_postings_response(title: str , location: str, start: int, proxy_list
     :param proxy_list: List of proxies values.
     :return: Response object or None
     """
-    if start < 0 or start > 1000:
-        raise ValueError("Invalid start value, number should an int between 0 and 1000")
+    config = load_config()
+    max_page = config.get("max_page", 5)
+    if start < 0 or start > max_page:
+        raise ValueError(f"Invalid start value, number should an int between 0 and max_page ({max_page})")
 
     list_url = f"https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords={title}&location={location}&start={start}"
 
@@ -237,6 +239,9 @@ def get_job_data(job_posting_id: str, proxy_list: List[str] = None) -> dict[str,
     job_response = robust_get_request(job_url, proxy_list=proxy_list, retries=3, timeout=10, cool_off=10)
 
     # Continue if request wasn't successful
+    if not job_response.status_code:
+        logging.error(f"Failed to get a status_code for job posting id: {job_posting_id}")
+        return None
     if job_response.status_code != 200:
         logging.error(f"Status Code: {job_response.status_code} for job posting id: {job_posting_id}")
         return None
@@ -335,6 +340,8 @@ def search_linkedin_jobs(title: str, location: str, start: int, proxy_list: list
     :return: None. The function saves the scraped data directly into the database.
     """
 
+    config = load_config()
+    max_page = config.get("max_page", 5)
     end_loop = False
 
     # Initialize an empty list to store job information
@@ -344,10 +351,10 @@ def search_linkedin_jobs(title: str, location: str, start: int, proxy_list: list
 
     parsed_job_posting_ids = job_posting_repository.get_all_job_ids()
 
-    for current_page in range(start, 1000, 1):
+    for current_page in range(start, max_page, 1):
 
-        if current_page >= 1000:
-            logging.info("Exiting script due to having reach page 999 or higher.")
+        if current_page >= max_page:
+            logging.info(f"Exiting script due to having reach page {max_page} or higher.")
             break
 
         response = get_job_postings_response(title, location, current_page, proxy_list)
@@ -363,18 +370,25 @@ def search_linkedin_jobs(title: str, location: str, start: int, proxy_list: list
 
         # Iterate through job postings to find job ids
         for job in page_jobs:
-            base_card_div = job.find("div", {"class": "base-card"})
-            job_posting_id = base_card_div.get("data-entity-urn").split(":")[3]
-            job_posting_datetime = job.find("time").get("datetime", None)
-            job_posting_ids.append({
-                "id": int(job_posting_id),
-                "datetime": job_posting_datetime,
-            })
+            try:
+                base_card_div = job.find("div", {"class": "base-card"})
+                job_posting_id = base_card_div.get("data-entity-urn").split(":")[3]
+                job_posting_datetime = job.find("time").get("datetime", None)
+                job_posting_ids.append({
+                    "id": int(job_posting_id),
+                    "datetime": job_posting_datetime,
+                })
+            except AttributeError as error:
+                logging.error(f"Job posting extraction failed with exception:\n{str(error)}\n")
+                # logging.error(f"HTML at fault:\n{job.prettify()}")
+                continue
 
         logging.info(f"Found {len(job_posting_ids)} job posting ids")
 
         if len(job_posting_ids) == 0:
-            logging.error("Exiting script due to failure retrieving job posting ids")
+            logging.error(
+                f"Exiting parsin loop for title: {title} & location {location} due to failure retrieving job posting ids"
+            )
             break
         if 0 < len(job_posting_ids) < 10:
             end_loop = True
